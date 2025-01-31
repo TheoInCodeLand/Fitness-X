@@ -6,16 +6,16 @@ const passport = require("passport");
 const flash = require("connect-flash");
 const sqlite3 = require("sqlite3").verbose();
 const SQLiteStore = require("connect-sqlite3")(session);
+require("./config/passport")(passport);
 
-// Initialize Express App
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
+
 const app = express();
 
-// Middleware
 app.set("view engine", "ejs");
 app.use(express.static(path.join(__dirname, "public")));
 app.use(express.urlencoded({ extended: true }));
 
-// Session Middleware
 app.use(
   session({
     secret: "secretkey",
@@ -25,14 +25,11 @@ app.use(
   })
 );
 
-// Passport Middleware
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Flash Messages
 app.use(flash());
 
-// Global Variables
 app.use((req, res, next) => {
   res.locals.success_msg = req.flash("success_msg");
   res.locals.error_msg = req.flash("error_msg");
@@ -40,14 +37,25 @@ app.use((req, res, next) => {
   next();
 });
 
-// Routes
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: "/auth/google/callback",
+      scope: ["https://www.googleapis.com/auth/fitness.activity.read"],
+    },
+    (accessToken, refreshToken, profile, done) => {
+      // Store the Google Fit Access Token
+      profile.accessToken = accessToken;
+      return done(null, profile);
+    }
+  )
+);
+
 app.use("/", require("./routes/index"));
 app.use("/auth", require("./routes/auth"));
 app.use("/workouts", require("./routes/workouts"));
-app.use("/meals", require("./routes/meals"));
-app.use("/progress", require("./routes/progress"));
-app.use("/api", require("./routes/api"));
 
-// Server Listening
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server running on port http://localhost:${PORT}`));
